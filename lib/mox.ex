@@ -766,7 +766,7 @@ defmodule Mox do
   defp __log_calls__?(type, mock), do: mock.__log_calls__(type)
 
   defp do_log_call(type, mock, name, arity, args) do
-    IO.puts("#{log_label(type)} #{mock}.#{name}/#{arity} with args: #{inspect(args)}")
+    IO.puts("\n#{log_label(type)} #{mock}.#{name}/#{arity} with args: #{inspect(args)}")
     IO.puts("  Stacktrace:")
 
     log_stacktrace()
