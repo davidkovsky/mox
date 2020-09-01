@@ -313,6 +313,14 @@ defmodule Mox do
       Mox.defmock(MyMock, for: MyBehaviour, moduledoc: false)
       Mox.defmock(MyMock, for: MyBehaviour, moduledoc: "My mock module.")
 
+  ## Logging mocked and unmocked calls
+
+  You can enable logging of calls that are or are not mocked. This can
+  help with debugging when test expectations fail.
+
+      Mox.defmock(MyMock, for: MyBehavior, log_mocked_calls: true)
+      Mox.defmock(MyMock, for: MyBehavior, log_unmocked_calls: true)
+
   """
   def defmock(name, options) when is_atom(name) and is_list(options) do
     behaviours =
@@ -328,8 +336,9 @@ defmodule Mox do
     compile_header = generate_compile_time_dependency(behaviours)
     callbacks_to_skip = validate_skip_optional_callbacks!(behaviours, skip_optional_callbacks)
     mock_funs = generate_mock_funs(behaviours, callbacks_to_skip)
+    log_funs = generate_log_funs(options)
 
-    define_mock_module(name, behaviours, doc_header ++ compile_header ++ mock_funs)
+    define_mock_module(name, behaviours, doc_header ++ compile_header ++ mock_funs ++ log_funs)
 
     name
   end
@@ -380,6 +389,21 @@ defmodule Mox do
         end
       end
     end
+  end
+
+  defp generate_log_funs(options) do
+    mocked =
+      quote do
+        def __log_calls__(:mocked), do: Keyword.get(unquote(options), :log_mocked_calls, false)
+      end
+
+    unmocked =
+      quote do
+        def __log_calls__(:unmocked),
+          do: Keyword.get(unquote(options), :log_unmocked_calls, false)
+      end
+
+    [mocked, unmocked]
   end
 
   defp validate_skip_optional_callbacks!(behaviours, skip_optional_callbacks) do
@@ -715,12 +739,14 @@ defmodule Mox do
 
     case Mox.Server.fetch_fun_to_dispatch(all_callers, {mock, name, arity}) do
       :no_expectation ->
+        log_call(:unmocked, mock, name, arity, args)
         mfa = Exception.format_mfa(mock, name, arity)
 
         raise UnexpectedCallError,
               "no expectation defined for #{mfa} in #{format_process()} with args #{inspect(args)}"
 
       {:out_of_expectations, count} ->
+        log_call(:unmocked, mock, name, arity, args)
         mfa = Exception.format_mfa(mock, name, arity)
 
         raise UnexpectedCallError,
@@ -728,8 +754,41 @@ defmodule Mox do
                 "called #{times(count + 1)} in #{format_process()}"
 
       {:ok, fun_to_call} ->
+        log_call(:mocked, mock, name, arity, args)
         apply(fun_to_call, args)
     end
+  end
+
+  defp log_call(type, mock, name, arity, args) do
+    if __log_calls__?(type, mock), do: do_log_call(type, mock, name, arity, args)
+  end
+
+  defp __log_calls__?(type, mock), do: mock.__log_calls__(type)
+
+  defp do_log_call(type, mock, name, arity, args) do
+    IO.puts("#{log_label(type)} #{mock}.#{name}/#{arity} with args: #{inspect(args)}")
+    IO.puts("  Stacktrace:")
+
+    log_stacktrace()
+    IO.puts(nil)
+  end
+
+  defp log_label(:mocked), do: "\u001b[36mMOCKED CALL\u001b[0m"
+  defp log_label(:unmocked), do: "\u001b[31mUNMOCKED CALL\u001b[0m"
+
+  defp log_stacktrace() do
+    {:current_stacktrace, stacktrace} = Process.info(self(), :current_stacktrace)
+
+    stacktrace
+    |> Enum.map(&format_stacktrace_lines(&1))
+    |> Enum.map(&IO.puts(&1))
+  end
+
+  defp format_stacktrace_lines({_module, _function, _arity, file_info}) do
+    file = Keyword.get(file_info, :file)
+    line = Keyword.get(file_info, :line)
+
+    "    #{file}:#{line}"
   end
 
   defp times(1), do: "once"

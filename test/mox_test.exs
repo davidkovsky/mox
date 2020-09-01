@@ -99,6 +99,22 @@ defmodule MoxTest do
       end
     end
 
+    test "enables logging for calls with `log_mocked_calls: true`" do
+      assert MyMockWithMockedCallLogging.__log_calls__(:mocked) == true
+    end
+
+    test "disables logging for mocked calls with `log_mocked_calls: false`" do
+      assert MyMockWithoutMockedCallLogging.__log_calls__(:mocked) == false
+    end
+
+    test "enables logging for calls with `log_unmocked_calls: true`" do
+      assert MyMockWithUnmockedCallLogging.__log_calls__(:unmocked) == true
+    end
+
+    test "disables logging for unmocked calls with `log_unmocked_calls: false`" do
+      assert MyMockWithoutUnmockedCallLogging.__log_calls__(:unmocked) == false
+    end
+
     @tag :requires_code_fetch_docs
     test "uses false for when moduledoc is not given" do
       assert {:docs_v1, _, :elixir, "text/markdown", :hidden, _, _} =
