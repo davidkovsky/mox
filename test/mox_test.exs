@@ -1,6 +1,7 @@
 defmodule MoxTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureIO
   import Mox
   doctest Mox
 
@@ -155,15 +156,10 @@ defmodule MoxTest do
     test "is invoked n times by the same process in private mode" do
       set_mox_private()
 
-      CalcMock
-      |> expect(:add, 2, fn x, y -> x + y end)
+      MyMockWithMockedCallLogging
       |> expect(:mult, fn x, y -> x * y end)
-      |> expect(:add, fn _, _ -> 0 end)
 
-      assert CalcMock.add(2, 3) == 5
-      assert CalcMock.add(3, 2) == 5
-      assert CalcMock.add(:whatever, :whatever) == 0
-      assert CalcMock.mult(3, 2) == 6
+      MyModule.call()
     end
 
     test "is invoked n times by any process in global mode" do

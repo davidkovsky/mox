@@ -776,7 +776,7 @@ defmodule Mox do
   defp log_label(:mocked), do: "\u001b[36mMOCKED CALL\u001b[0m"
   defp log_label(:unmocked), do: "\u001b[31mUNMOCKED CALL\u001b[0m"
 
-  defp log_stacktrace() do
+  defp log_stacktrace do
     {:current_stacktrace, stacktrace} = Process.info(self(), :current_stacktrace)
 
     stacktrace
@@ -807,6 +807,14 @@ defmodule Mox do
 
   # Find the pid of the actual caller
   defp caller_pids do
+    IO.puts("********* keys:")
+    Process.get_keys()
+    IO.puts("********* callers:")
+    Process.get(:"$callers")
+
+    IO.puts("********* list:")
+    Process.list() |> IO.inspect()
+
     case Process.get(:"$callers") do
       nil -> []
       pids when is_list(pids) -> pids
