@@ -766,30 +766,17 @@ defmodule Mox do
   defp __log_calls__?(type, mock), do: mock.__log_calls__(type)
 
   defp do_log_call(type, mock, name, arity, args) do
-    IO.puts("\n#{log_label(type)} #{mock}.#{name}/#{arity} with args: #{inspect(args)}")
-    IO.puts("  Stacktrace:")
+    mfa = Exception.format_mfa(mock, name, arity)
 
-    log_stacktrace()
-    IO.puts(nil)
+    IO.puts("\n#{log_label(type)} #{mfa} with args: #{inspect(args)}")
+    log_stacktrace(type)
   end
 
-  defp log_label(:mocked), do: "\u001b[36mMOCKED CALL\u001b[0m"
-  defp log_label(:unmocked), do: "\u001b[31mUNMOCKED CALL\u001b[0m"
+  defp log_label(:mocked), do: IO.ANSI.cyan() <> "MOCKED CALL" <> IO.ANSI.reset()
+  defp log_label(:unmocked), do: IO.ANSI.red() <> "UNMOCKED CALL" <> IO.ANSI.reset()
 
-  defp log_stacktrace do
-    {:current_stacktrace, stacktrace} = Process.info(self(), :current_stacktrace)
-
-    stacktrace
-    |> Enum.map(&format_stacktrace_lines(&1))
-    |> Enum.map(&IO.puts(&1))
-  end
-
-  defp format_stacktrace_lines({_module, _function, _arity, file_info}) do
-    file = Keyword.get(file_info, :file)
-    line = Keyword.get(file_info, :line)
-
-    "    #{file}:#{line}"
-  end
+  defp log_stacktrace(:unmocked), do: IO.puts(Exception.format_stacktrace())
+  defp log_stacktrace(:mocked), do: nil
 
   defp times(1), do: "once"
   defp times(n), do: "#{n} times"
@@ -807,14 +794,6 @@ defmodule Mox do
 
   # Find the pid of the actual caller
   defp caller_pids do
-    IO.puts("********* keys:")
-    Process.get_keys()
-    IO.puts("********* callers:")
-    Process.get(:"$callers")
-
-    IO.puts("********* list:")
-    Process.list() |> IO.inspect()
-
     case Process.get(:"$callers") do
       nil -> []
       pids when is_list(pids) -> pids

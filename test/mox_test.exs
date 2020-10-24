@@ -1,6 +1,7 @@
 defmodule MoxTest do
   use ExUnit.Case, async: true
 
+  import ExUnit.CaptureIO
   import Mox
   doctest Mox
 
@@ -101,18 +102,44 @@ defmodule MoxTest do
 
     test "enables logging for calls with `log_mocked_calls: true`" do
       assert MyMockWithMockedCallLogging.__log_calls__(:mocked) == true
+
+      MyMockWithMockedCallLogging
+      |> expect(:add, fn a, b -> a + b end)
+
+      assert capture_io(fn ->
+               MyMockWithMockedCallLogging.add(1, 2)
+             end) =~ IO.ANSI.cyan() <> "MOCKED CALL" <> IO.ANSI.reset()
     end
 
     test "disables logging for mocked calls with `log_mocked_calls: false`" do
       assert MyMockWithoutMockedCallLogging.__log_calls__(:mocked) == false
+
+      MyMockWithoutMockedCallLogging
+      |> expect(:add, fn a, b -> a + b end)
+
+      assert capture_io(fn ->
+               MyMockWithoutMockedCallLogging.add(1, 2)
+             end) == ""
     end
 
     test "enables logging for calls with `log_unmocked_calls: true`" do
       assert MyMockWithUnmockedCallLogging.__log_calls__(:unmocked) == true
+
+      assert capture_io(fn ->
+               assert_raise Mox.UnexpectedCallError, fn ->
+                 MyMockWithUnmockedCallLogging.add(1, 2)
+               end
+             end) =~ IO.ANSI.red() <> "UNMOCKED CALL" <> IO.ANSI.reset()
     end
 
     test "disables logging for unmocked calls with `log_unmocked_calls: false`" do
       assert MyMockWithoutUnmockedCallLogging.__log_calls__(:unmocked) == false
+
+      assert capture_io(fn ->
+               assert_raise Mox.UnexpectedCallError, fn ->
+                 MyMockWithoutUnmockedCallLogging.add(1, 2)
+               end
+             end) == ""
     end
 
     @tag :requires_code_fetch_docs
